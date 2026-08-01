@@ -3,6 +3,8 @@
 매출 데이터를 지역별/월별/제품별 등 다양한 기준으로 집계(계산)하는 함수 모음이다.
 """
 
+import math
+
 import pandas as pd
 
 # pivot_table로 표를 만들면 지역 컬럼이 가나다순(대구, 부산, 서울, 인천)으로 정렬되어
@@ -69,3 +71,67 @@ def calc_region_product_pivot(df):
 
     # 지역 행 순서를 가나다순 대신 REGION_ORDER(서울, 부산, 대구, 인천)로 고정한다.
     return pivot.reindex(index=REGION_ORDER)
+
+
+def calc_region_bestseller(df):
+    # 지역 x 제품 매출표는 이미 만들어져 있는 calc_region_product_pivot을 그대로 가져다 쓴다.
+    # (같은 계산을 두 번 만들지 않기 위해서다)
+    pivot = calc_region_product_pivot(df)
+
+    # idxmax(axis=1) : 각 행(지역)에서 값이 가장 큰 "컬럼 이름"(제품명)을 찾아준다.
+    # max(axis=1) : 각 행(지역)에서 가장 큰 값(매출액) 자체를 찾아준다.
+    bestseller = pd.DataFrame(
+        {
+            "베스트셀러 제품": pivot.idxmax(axis=1),
+            "매출": pivot.max(axis=1),
+        }
+    )
+
+    return bestseller
+
+
+def calc_quarterly_totals(df):
+    # 행별 매출(수량 x 단가)을 구한 뒤, 분기별로 합산한다.
+    # 이 함수를 쓰려면 df에 "분기" 컬럼이 미리 있어야 한다 (data.add_quarter_column으로 추가).
+    df = df.copy()
+    df["매출"] = df["수량"] * df["단가"]
+
+    # groupby("분기") : 같은 분기(1~4)끼리 묶는다.
+    # sort_index() : 분기 번호를 1 -> 2 -> 3 -> 4 순서로 정렬한다.
+    return df.groupby("분기")["매출"].sum().sort_index()
+
+
+def calc_pareto_analysis(product_totals):
+    # product_totals : calc_product_totals의 결과(매출 내림차순 정렬된 제품별 매출)를 받는다.
+
+    총_제품_수 = len(product_totals)
+    총_매출 = product_totals.sum()
+
+    # 상위 20%에 해당하는 제품 개수를 구한다.
+    # 예) 제품이 4개면 4 x 0.2 = 0.8개인데, 제품은 1개 단위이므로 올림해서 최소 1개는 되게 한다.
+    상위_20퍼센트_개수 = max(1, math.ceil(총_제품_수 * 0.2))
+
+    # 매출이 가장 큰 제품부터 상위_20퍼센트_개수 만큼 뽑아 매출 합을 구한다.
+    상위_제품_매출_합 = product_totals.iloc[:상위_20퍼센트_개수].sum()
+
+    # 상위 20% 제품의 매출이 전체 매출에서 차지하는 비율(%)
+    상위_20퍼센트_비율 = 상위_제품_매출_합 / 총_매출 * 100
+
+    # 파레토 차트를 그릴 때 필요한 표를 만든다.
+    # 매출(원)과 누적비율(%)은 단위가 완전히 달라서 그래프 한 축에 같이 그리면
+    # 이중 축(축이 2개인 그래프)이 되어 오히려 읽기 어려워진다.
+    # 그래서 "매출" 대신 "비율(%)"로 통일해, 막대(개별 비율)와 꺾은선(누적 비율)을
+    # 같은 0~100% 축 하나에 그릴 수 있도록 한다.
+    누적표 = pd.DataFrame(
+        {
+            "매출": product_totals,
+            "비율(%)": product_totals / 총_매출 * 100,
+            "누적비율(%)": product_totals.cumsum() / 총_매출 * 100,
+        }
+    )
+
+    return {
+        "상위_20퍼센트_제품_개수": 상위_20퍼센트_개수,
+        "상위_20퍼센트_비율": 상위_20퍼센트_비율,
+        "누적표": 누적표,
+    }

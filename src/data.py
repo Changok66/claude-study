@@ -24,3 +24,17 @@ def add_month_column(df):
     df["연월"] = df["날짜"].dt.strftime("%Y-%m")
 
     return df
+
+
+def add_quarter_column(df):
+    # 원본 데이터프레임을 바꾸지 않기 위해 복사본을 만든다.
+    df = df.copy()
+
+    # '날짜' 컬럼을 문자열에서 진짜 날짜 타입으로 바꾼다. (add_month_column과 동일)
+    df["날짜"] = pd.to_datetime(df["날짜"])
+
+    # .dt.quarter : 날짜가 몇 분기(1~4)에 속하는지 숫자로 알려주는 기능이다.
+    # 예) 1~3월이면 1, 4~6월이면 2, 7~9월이면 3, 10~12월이면 4
+    df["분기"] = df["날짜"].dt.quarter
+
+    return df
