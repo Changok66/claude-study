@@ -5,7 +5,8 @@
 import pandas as pd
 import pytest
 
-from report import add_month_column, calc_monthly_region_pivot, calc_monthly_totals
+from src.data import add_month_column
+from src.metrics import calc_monthly_region_pivot, calc_monthly_totals
 
 
 @pytest.fixture
