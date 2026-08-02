@@ -57,7 +57,13 @@ def check_region_names(df):
 
     # .str.strip() : 문자열 앞뒤 공백을 제거한 값을 만듭니다.
     # 원래 값과 strip한 값이 다르다면, 앞뒤 공백이 있었다는 뜻입니다.
-    has_whitespace = df["지역"] != df["지역"].str.strip()
+    #
+    # 지역 값이 결측치(NaN)인 행은 여기서 검사하지 않습니다. NaN은 문자열이
+    # 아니라서 "공백이 있다/없다"를 따질 수 없고, 결측치 문제는 이미
+    # check_no_missing()에서 별도로 확인하기 때문입니다. (그냥 두면 NaN도
+    # "공백이 있다"고 잘못 표시됩니다.)
+    is_not_missing = df["지역"].notna()
+    has_whitespace = is_not_missing & (df["지역"] != df["지역"].str.strip())
 
     # 공백이 있는 행만 골라냅니다.
     whitespace_rows = df[has_whitespace]

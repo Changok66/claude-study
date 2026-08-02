@@ -88,6 +88,12 @@ def calc_region_bestseller(df):
     # (같은 계산을 두 번 만들지 않기 위해서다)
     pivot = calc_region_product_pivot(df)
 
+    # 어떤 지역에 매출이 전혀 없으면(그 행의 모든 제품이 NaN) idxmax/max는
+    # "가장 큰 값"을 찾을 수 없어 에러를 낸다. 그런 지역은 애초에 베스트셀러를
+    # 정할 수 없으므로, 계산 전에 결과에서 미리 제외한다.
+    # dropna(how="all") : 행의 모든 값이 NaN인 행만 제거한다.
+    pivot = pivot.dropna(how="all")
+
     # idxmax(axis=1) : 각 행(지역)에서 값이 가장 큰 "컬럼 이름"(제품명)을 찾아준다.
     # max(axis=1) : 각 행(지역)에서 가장 큰 값(매출액) 자체를 찾아준다.
     bestseller = pd.DataFrame(
