@@ -9,20 +9,33 @@ import pandas as pd
 
 # pivot_table로 표를 만들면 지역 컬럼이 가나다순(대구, 부산, 서울, 인천)으로 정렬되어
 # 표를 읽을 때 헷갈리기 쉽다. 그래서 익숙한 순서로 고정해서 보여준다.
+#
+# data/make_data.py(데이터 생성)와 report.ipynb(그래프 색상 매핑)에서도 똑같은
+# 지역/제품 이름 목록이 필요하다. 목록을 여러 파일에 각각 적어두면 나중에 지역이나
+# 제품이 바뀔 때 한쪽만 고치고 다른 쪽을 깜빡하기 쉬우므로, 여기 이 두 목록을
+# "단일 기준"으로 두고 다른 파일에서는 이 목록을 가져다 쓴다.
 REGION_ORDER = ["서울", "부산", "대구", "인천"]
+PRODUCT_ORDER = ["노트북", "마우스", "키보드", "모니터"]
+
+
+def _add_revenue_column(df):
+    # 아래 여러 계산 함수가 공통으로 필요로 하는 "행별 매출(수량 x 단가)" 컬럼을
+    # 추가해주는 내부용 도우미 함수다. (직접 df["매출"] = ... 을 반복해서 쓰지 않기 위함)
+    # 원본 데이터프레임을 바꾸지 않기 위해 복사본을 만든다.
+    df = df.copy()
+    df["매출"] = df["수량"] * df["단가"]
+    return df
 
 
 def calc_region_totals(df):
     # 행별 매출(수량 x 단가)을 구한 뒤 지역별로 합산
-    df = df.copy()
-    df["매출"] = df["수량"] * df["단가"]
+    df = _add_revenue_column(df)
     return df.groupby("지역")["매출"].sum().sort_values(ascending=False)
 
 
 def calc_monthly_totals(df):
     # 행별 매출(수량 x 단가)을 구한 뒤, 연월별로 합산한다.
-    df = df.copy()
-    df["매출"] = df["수량"] * df["단가"]
+    df = _add_revenue_column(df)
 
     # groupby("연월") : 같은 연월끼리 묶는다.
     # ["매출"].sum() : 묶인 그룹마다 매출을 더한다.
@@ -32,8 +45,7 @@ def calc_monthly_totals(df):
 
 def calc_monthly_region_pivot(df):
     # 행별 매출(수량 x 단가)을 구한다.
-    df = df.copy()
-    df["매출"] = df["수량"] * df["단가"]
+    df = _add_revenue_column(df)
 
     # pivot_table : 표를 "연월"을 행(index), "지역"을 열(columns)로 재배치하면서
     # 겹치는 값(같은 연월 x 같은 지역)은 aggfunc="sum"으로 모두 더한다.
@@ -51,8 +63,7 @@ def calc_monthly_region_pivot(df):
 
 def calc_product_totals(df):
     # 행별 매출(수량 x 단가)을 구한 뒤 제품별로 합산
-    df = df.copy()
-    df["매출"] = df["수량"] * df["단가"]
+    df = _add_revenue_column(df)
 
     # sort_values(ascending=False) : 매출이 큰 제품부터 내림차순으로 정렬한다.
     return df.groupby("제품")["매출"].sum().sort_values(ascending=False)
@@ -60,8 +71,7 @@ def calc_product_totals(df):
 
 def calc_region_product_pivot(df):
     # 행별 매출(수량 x 단가)을 구한다.
-    df = df.copy()
-    df["매출"] = df["수량"] * df["단가"]
+    df = _add_revenue_column(df)
 
     # pivot_table : 표를 "지역"을 행(index), "제품"을 열(columns)로 재배치하면서
     # 겹치는 값(같은 지역 x 같은 제품)은 aggfunc="sum"으로 모두 더한다.
@@ -93,8 +103,7 @@ def calc_region_bestseller(df):
 def calc_quarterly_totals(df):
     # 행별 매출(수량 x 단가)을 구한 뒤, 분기별로 합산한다.
     # 이 함수를 쓰려면 df에 "분기" 컬럼이 미리 있어야 한다 (data.add_quarter_column으로 추가).
-    df = df.copy()
-    df["매출"] = df["수량"] * df["단가"]
+    df = _add_revenue_column(df)
 
     # groupby("분기") : 같은 분기(1~4)끼리 묶는다.
     # sort_index() : 분기 번호를 1 -> 2 -> 3 -> 4 순서로 정렬한다.
