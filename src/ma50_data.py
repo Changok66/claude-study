@@ -9,6 +9,7 @@ yfinance : 야후 파이낸스에서 주가/선물 시세를 무료로 받아오
 """
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pandas as pd
 import yfinance as yf
@@ -74,6 +75,33 @@ def fetch_kr_daily_bars(name):
     code = KR_STOCK_CODES[name]
     symbol, df = resolve_kr_symbol(code)
     return symbol, df
+
+
+def fetch_kr_min60_bars(name):
+    """
+    국내 보유종목 이름(예: "삼성전자")의 60분봉을 반환한다.
+
+    야후파이낸스는 한국 주식 분봉을 안정적으로 안 주는 데다 짧은 기간만
+    제공해서, 이 프로젝트에서는 이미 다른 경로(키움 API 등)로 미리 받아둔
+    data/price_{종목코드}_min60.csv를 그대로 읽는다(2026-09-18 세션에서
+    확인 - 9종목 전부 2025-09-01~2026-09-04, 1728행씩 이미 저장돼 있음).
+    새로 API 연동을 만들지 않고 파일을 읽기만 한다.
+
+    반환값은 fetch_kr_daily_bars와 형태를 맞추기 위해 (종목코드, 데이터프레임)
+    튜플이다. 파일이 없으면 (None, 빈 데이터프레임)을 반환한다.
+    """
+    if name not in KR_STOCK_CODES:
+        raise ValueError(f"'{name}'은(는) KR_STOCK_CODES 표에 없는 종목명입니다.")
+
+    code = KR_STOCK_CODES[name]
+    csv_path = Path(__file__).resolve().parent.parent / "data" / f"price_{code}_min60.csv"
+    if not csv_path.exists():
+        return None, pd.DataFrame()
+
+    df = pd.read_csv(csv_path, encoding="utf-8-sig")
+    df["Date"] = pd.to_datetime(df["Date"])
+    df = df.set_index("Date").sort_index()
+    return code, df
 
 
 def fetch_nq_4min_bars(max_days=30, chunk_days=7):
