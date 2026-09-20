@@ -37,6 +37,31 @@ def split_train_test(df, train_ratio=0.7):
     return train_df, test_df
 
 
+def split_by_common_period(df, train_start, train_end, val_start, val_end):
+    """
+    split_train_test()가 "종목마다 자기 역사의 뒤 30%"를 검증구간으로 삼다
+    보니, 종목별로 검증구간의 실제 달력 날짜가 제각각이라 결과적으로 여러
+    종목의 검증구간이 우연히 같은 상승장(또는 하락장) 시기에 몰릴 수 있다는
+    문제가 2026-09-18 세션에서 발견됐다(세션정리_학습검증분리방법론한계_20260918.md
+    참고). 이 함수는 그 대신, **모든 종목에 똑같은 달력 기간**을 학습/검증
+    구간으로 지정해서 종목 간 비교를 공정하게 만든다.
+
+    train_start/train_end/val_start/val_end는 "YYYY-MM-DD" 문자열이나
+    pd.Timestamp 아무거나 가능하다. 학습기간은 항상 검증기간보다 과거여야
+    한다(시계열 원칙 - 미래 정보가 학습에 섞이면 안 됨).
+
+    반환값은 df와 길이가 같은 pandas Series("학습"/"검증"/None)다. None은
+    지정한 두 기간 어디에도 속하지 않는 날짜(예: 두 기간 사이 공백, 또는
+    범위 밖)를 뜻한다.
+    """
+    labels = pd.Series(None, index=df.index, dtype=object)
+    labels[(df.index >= pd.Timestamp(train_start, tz=df.index.tz)) &
+           (df.index <= pd.Timestamp(train_end, tz=df.index.tz))] = "학습"
+    labels[(df.index >= pd.Timestamp(val_start, tz=df.index.tz)) &
+           (df.index <= pd.Timestamp(val_end, tz=df.index.tz))] = "검증"
+    return labels
+
+
 def _run_trade_simulation(rows, threshold_pct, entry_allowed, max_hold_bars, price_col):
     """
     진입/청산 매매 루프의 공통 부분을 모아둔 내부용 함수.
